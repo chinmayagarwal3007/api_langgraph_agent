@@ -1,6 +1,8 @@
 # backend/config.py
 from pydantic import BaseModel
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 
 class Settings(BaseModel):
@@ -19,7 +21,7 @@ class Settings(BaseModel):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/api_copilot"
 
     # LLM (later)
-    GEMINI_API_KEY: str | None = None
+    GOOGLE_API_KEY: str | None = os.getenv("GOOGLE_API_KEY")
 
 
 def load_settings() -> Settings:

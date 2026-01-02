@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
 from db.session import get_db
 from db.models import ChatSession, ChatMessage, User
 from auth.security import get_current_user
+from backend.graph.graph import build_graph
+from backend.graph.state import GraphState
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -38,6 +39,9 @@ async def list_sessions(
     ]
 
 
+graph = build_graph()
+
+
 @router.post("/sessions/{session_id}/messages")
 async def send_message(
     session_id: int,
@@ -45,12 +49,41 @@ async def send_message(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    msg = ChatMessage(
+    # store user message
+    db.add(ChatMessage(
         session_id=session_id,
         role="user",
         content=content,
-    )
-    db.add(msg)
+    ))
     await db.commit()
 
-    return {"status": "message stored"}
+    # load chat history
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.session_id == session_id)
+        .order_by(ChatMessage.created_at)
+    )
+    messages = result.scalars().all()
+
+    state: GraphState = {
+        "user_id": user.id,
+        "session_id": session_id,
+        "chat_history": [
+            {"role": m.role, "content": m.content} for m in messages
+        ],
+        "user_input": content,
+        "intent": None,
+        "response": None,
+    }
+
+    final_state = await graph.ainvoke(state)
+
+    # store assistant reply
+    db.add(ChatMessage(
+        session_id=session_id,
+        role="assistant",
+        content=final_state["response"],
+    ))
+    await db.commit()
+
+    return {"response": final_state["response"]}

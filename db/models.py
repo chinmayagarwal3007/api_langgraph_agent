@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
 from sqlalchemy.orm import declarative_base, relationship
-from datetime import datetime
+import datetime
 
 Base = declarative_base()
 
@@ -11,7 +11,6 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String(50), unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
-
     chats = relationship("ChatSession", back_populates="user")
 
 
@@ -20,8 +19,7 @@ class ChatSession(Base):
 
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.UTC))
     user = relationship("User", back_populates="chats")
     messages = relationship(
         "ChatMessage",
@@ -37,6 +35,5 @@ class ChatMessage(Base):
     session_id = Column(Integer, ForeignKey("chat_sessions.id"), nullable=False)
     role = Column(String(20))  # user / assistant / tool
     content = Column(Text)
-    created_at = Column(DateTime, default=datetime.utcnow)
-
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.datetime.now(datetime.UTC))
     session = relationship("ChatSession", back_populates="messages")

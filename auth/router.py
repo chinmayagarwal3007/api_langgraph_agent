@@ -1,7 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
 from db.session import get_db
 from db.models import User
 from auth.security import (
@@ -19,6 +18,13 @@ async def signup(
     password: str,
     db: AsyncSession = Depends(get_db),
 ):
+    print("PASSWORD RECEIVED:", repr(password))
+    print("BYTE LENGTH:", len(password.encode("utf-8")))
+    try:
+        hashed = hash_password(password)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     result = await db.execute(
         select(User).where(User.username == username)
     )
