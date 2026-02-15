@@ -1,17 +1,7 @@
-from typing import TypedDict, List, Optional, Dict, Any
-
-
-class Message(TypedDict):
-    role: str
-    content: str
+from typing import Annotated, TypedDict
+from langgraph.graph.message import add_messages
+from langchain_core.messages import BaseMessage
 
 
 class GraphState(TypedDict):
-    user_id: int
-    session_id: int
-
-    chat_history: List[Message]
-    user_input: str
-
-    intent: Optional[str]
-    response: Optional[str]
+    messages: Annotated[list[BaseMessage], add_messages]

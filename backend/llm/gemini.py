@@ -1,16 +1,14 @@
-import google.generativeai as genai
+from dotenv import load_dotenv
+import os
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.messages import HumanMessage
 
-genai.configure()
+load_dotenv()
 
-model = genai.GenerativeModel("gemini-2.5-flash")
+os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY")
 
+llm = ChatGoogleGenerativeAI(
+    model="gemini-2.5-flash",
+    temperature=0,
+)
 
-async def generate(prompt: str) -> str:
-    # Gemini SDK is sync → run in thread
-    import asyncio
-    loop = asyncio.get_running_loop()
-
-    def _call():
-        return model.generate_content(prompt).text
-
-    return await loop.run_in_executor(None, _call)
