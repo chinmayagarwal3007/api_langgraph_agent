@@ -19,16 +19,7 @@ async def detect_intent(state: GraphState):
     ]
 
     response = await llm.ainvoke(messages)
-
-    print("\n==================================================\n") 
-    print("LLM Response:", response)
-    print("====================================================\n")
-
-    if response.tool_calls:
-        print("Tool decision:", response.tool_calls[0]["name"])
-    else:
-        print("No tool called. Normal LLM response.")
-    
+ 
     return {
     "messages": [response]
     }
@@ -36,20 +27,14 @@ async def detect_intent(state: GraphState):
 tool_node = ToolNode(useful_tools)
 
 async def respond(state: GraphState) -> GraphState:
-     print("\n===== STATE MESSAGES =====")
-     for m in state["messages"]:
-         print(type(m), getattr(m, "content", None))
-     print("==========================\n")     
-
-
-     messages = [
+    messages = [
         SystemMessage(content=RESPOND_PROMPT),
         *state["messages"],
     ]
      
-     response = await llm.ainvoke(messages)
+    response = await llm.ainvoke(messages)
 
-     return {
+    return {
     "messages": [response]
     }
 

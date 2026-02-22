@@ -1,13 +1,14 @@
-from unittest import result
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from db.session import get_db
 from db.models import ChatSession, ChatMessage, User
 from auth.security import get_current_user
 from backend.graph.graph import build_graph
 from backend.graph.state import GraphState
 from langchain_core.messages import HumanMessage, AIMessage
+from fastapi import HTTPException
+from utils.utils import normalize_llm_content
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 
@@ -87,12 +88,8 @@ async def send_message(
 
     last_message = final_state["messages"][-1]
 
-    assistant_reply = last_message.content
+    assistant_reply = normalize_llm_content(last_message.content)
     
-    print("\n================= FINAL STATE =================")
-    print("FINAL STATE:", final_state)
-    print("=============================================\n")
-
     # store assistant reply
     db.add(ChatMessage(
     session_id=session_id,
@@ -102,3 +99,54 @@ async def send_message(
     await db.commit()
 
     return {"response": assistant_reply}
+
+@router.get("/sessions/{session_id}/messages")
+async def get_messages(
+    session_id: int,
+    user = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+
+    result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.session_id == session_id)
+        .order_by(ChatMessage.created_at)
+    )
+
+    messages = result.scalars().all()
+
+    return [
+        {
+            "id": m.id,
+            "role": m.role,
+            "content": m.content,
+            "created_at": m.created_at,
+        }
+        for m in messages
+    ]
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(
+    session_id: int,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.user_id == user.id,
+        )
+    )
+
+    session = result.scalar_one_or_none()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    # ✅ Single delete — DB handles cascade
+    await db.delete(session)
+
+    await db.commit()
+
+    return {"message": "Session deleted successfully"}
